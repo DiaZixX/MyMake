@@ -1,0 +1,9 @@
+# Configurations files
+.clang*
+
+# Test files
+*.test
+
+# Binaries
+bin/
+a.out
