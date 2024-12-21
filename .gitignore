@@ -7,3 +7,5 @@
 # Binaries
 bin/
 a.out
+my_parser
+test_lexer
