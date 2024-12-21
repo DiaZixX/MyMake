@@ -1,56 +1,73 @@
 %{
+/***** C Stuff (header, declarations, variables) *****/
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
+// Prototypes of the lexer
+int yylex(void);
 void yyerror(const char *s);
-extern int yylex();
+
+int lineNumber;
+extern FILE * yyin;
 %}
 
-%union {
-    char *str;
-}
+%debug
+%token NEW_LINE COLON EQUALS
+%token VARIABLE TARGET INCLUDE
+%token COMMAND_TEXT
 
-%token VARIABLE TARGET COMMAND_TEXT
-%token ':' '=' '\n'
+%union { char str[0x400]; }
+%type<str> TARGET VARIABLE COMMAND_TEXT target_list command_list
 
+%start makefile
 %%
 
 makefile:
-    /* Grammaire principale */
-    | makefile statement
-    ;
+    line_list
+;
 
-statement:
-      rule
-    | variable_assignment
-    ;
+line_list:
+	line
+    | line_list line
+;
 
-rule:
-    TARGET ':' dependencies '\n' commands
-    ;
+line:
+    NEW_LINE
+    | VARIABLE EQUALS target_list NEW_LINE { fprintf(stdout, "[VARIABLE] %s\n[EQUALS] =\n%s[NEW_LINE]\n", $1, $3); }
+    | INCLUDE TARGET NEW_LINE { fprintf(stdout, "[INCLUDE] include\n[TARGET] %s\n[NEW_LINE]\n", $2); }
+	| TARGET COLON target_list NEW_LINE command_list { fprintf(stdout, "[TARGET] %s\n[COLON] :\n%s%s[NEW_LINE]\n", $1, $3, $5); }
+;
 
-dependencies:
-      /* Liste des dépendances (optionnelles) */
-    | dependencies TARGET
-    ;
+command_list :
+	/* epsilon */ { sprintf($$, ""); }
+	| command_list COMMAND_TEXT NEW_LINE { sprintf($$, "%s[COMMAND_TEXT] %s\n", $1, $2); }
 
-commands:
-      /* Bloc de commandes commençant par une tabulation */
-    | commands '\t' COMMAND_TEXT '\n' { printf("Command: %s\n", $3); free($3); }
-    ;
-
-variable_assignment:
-    VARIABLE '=' TARGET '\n' { printf("Variable: %s = %s\n", $1, $3); }
-    ;
+target_list:
+	/* epsilon */ { sprintf($$, ""); }
+    | target_list TARGET { sprintf($$, "%s[TARGET] %s\n", $1, $2); }
+;
 
 %%
 
 void yyerror(const char *s) {
-    fprintf(stderr, "Erreur : %s\n", s);
+    fprintf(stderr, "Error: %s\n", s);
 }
 
-int main(void) {
-    return yyparse();
+extern int yydebug;
+int main(int argc, char* argv[]){
+	yydebug = 0;
+	if (argc > 1){
+		yyin=fopen(argv[1],"r");
+	} else {
+		fprintf(stderr, "No input file\n");
+		return 1;
+	}
+	lineNumber = 0;
+	/*
+	if(!yyparse()){
+		fprintf(stdout, "Parsing success !\n");
+	}
+	*/
+	return yyparse();
 }
 
